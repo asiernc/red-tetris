@@ -13,7 +13,7 @@ const clearFullRows = (state) => {
 
 		if (isFull) {
 			board.splice(rowIndex, 1);
-			newBoard.unshift(Array(numCols).fill(0));
+			board.unshift(Array(numCols).fill(0));
 			rowsCleared++;
 			rowIndex++;
 		}
