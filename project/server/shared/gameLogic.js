@@ -1,8 +1,9 @@
 //const pieces = require('./pieces');
+const { Router } = require('express');
 const { PIECES, WALL_KICK_OFFSETS } = require('./pieces');
 
-const clearFullRows = (state) => {
-	const { board } = state;
+const clearFullRows = (playerState) => {
+	const { board } = playerState;
 	const numCols = board[0].length;
 	let rowsCleared = 0;
 
@@ -18,7 +19,7 @@ const clearFullRows = (state) => {
 			rowIndex++;
 		}
 	}
-	state.board = board;
+	playerState.board = board;
 	return rowsCleared;
 }
 
@@ -29,7 +30,8 @@ const isValidPosition = (board, piece, position) => {
 			const newRow = position.row + rowIndex;
 			const newCol = position.col + colIndex;
 
-			if (newRow < 0 || newRow >= board.length || newCol < 0 || newCol >= board[0].length) {
+			if (newRow < 0 ) return true;
+			if (newRow >= board.length || newCol < 0 || newCol >= board[0].length) {
 				return false;
 			}
 
@@ -38,94 +40,63 @@ const isValidPosition = (board, piece, position) => {
 	)
 };
 
-const generateNewRandomPiece = ( board ) => {
+const generateNewRandomPieceSequence = ( length = 100 ) => {
 	const pieceTypes = Object.keys(PIECES);
-	const randomType = pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
-	const randomCol = Math.floor(Math.random() * (board[0].length - 4));
+	const sequence = [];
 
-	const newPiece = {
-		type: randomType,
-		position: { row: 0, col: randomCol },
-	}
-	const pieceShape = PIECES[randomType];
-	if (!isValidPosition(board, pieceShape, newPiece.position)) {
-		return null;
-	}
-
-	return newPiece;
-};
-
-const movePiece = (gameState, direction) => {
-	// interval no puede ser convertido a json, por lo que se extrae antes
-	const stateCopy = { ...gameState };
+	for (let i = 0; i < length; i++) {
+		const randomType = pieceTypes[Math.floor(Math.random() * pieceTypes.length)];
+		sequence.push(randomType);
+	};
 	
-	const interval = stateCopy.interval;
-	delete stateCopy.interval;
-
-	const newState = JSON.parse(JSON.stringify(stateCopy));
-	newState.interval = interval;
-	//newState.interval = interval;
-
-	switch ( direction ) {
-		case 'MOVE_LEFT':
-			return (moveLeft(newState));
-		case 'MOVE_RIGHT':
-			return (moveRight(newState));
-		case 'MOVE_DOWN':
-			return (moveDown(newState));
-		case 'ROTATE':
-			return (rotate(newState));
-		case 'DROP':
-			return (dropToBottom(newState));
-		default:
-			return gameState;
-	}
+	return sequence;
 };
 
-const moveLeft = (state) => {
-	const { type, position, shape } = state.activePiece;
+const moveLeft = (playerState) => {
+	const { type, position, shape } = playerState.activePiece;
 	const pieceShape = shape || PIECES[type];
 	const newPos = { ...position, col: position.col - 1 };
 
-	if (isValidPosition(state.board, pieceShape, newPos)) {
-		state.activePiece.position = newPos;
+	if (isValidPosition(playerState.board, pieceShape, newPos)) {
+		playerState.activePiece.position = newPos;
 	}
-	return state;
+	return playerState;
 }
 
-const moveRight = (state) => {
-	const { type, position, shape } = state.activePiece;
+const moveRight = (playerState) => {
+	const { type, position, shape } = playerState.activePiece;
 	const pieceShape = shape || PIECES[type];
 	const newPos = { ...position, col: position.col + 1 };
 
-	if (isValidPosition(state.board, pieceShape, newPos)) {
-		state.activePiece.position = newPos;
+	if (isValidPosition(playerState.board, pieceShape, newPos)) {
+		playerState.activePiece.position = newPos;
 	}
-	return state;
+	return playerState;
 }
 
-const moveDown = (state) => {
-	if (!state.activePiece) {
+const moveDown = (playerState) => {
+	if (!playerState.activePiece) {
 		console.log("no active piece, game over:(");
-		return state;
+		return playerState;
 	}
-	console.log('down');
-	const { type, position, shape } = state.activePiece;
+	const { type, position, shape } = playerState.activePiece;
 	const pieceShape = shape || PIECES[type];
 	const newPos = { ...position, row: position.row + 1 };
 
-	if (isValidPosition(state.board, pieceShape, newPos)) {
-		state.activePiece.position = newPos;
-		state.lockDelay = false;
+	let needsNewPiece = false;
+
+	if (isValidPosition(playerState.board, pieceShape, newPos)) {
+		playerState.activePiece.position = newPos;
+		playerState.lockDelay = false;
 	} else {
-		handlePieceLock(state);
+		needsNewPiece = handlePieceLock(playerState);
 	}
-	return state;
+	return { playerState, needsNewPiece };
 }
 
-const rotate = (state) => {
+const rotate = (playerState) => {
 	console.log("Rotating piece");
-	const { type, position, shape } = state.activePiece;
+	const { type, position, shape } = playerState.activePiece;
 	const originalPiece = shape || PIECES[type];
 
 	const rotated = originalPiece[0].map((_, i) => 
@@ -137,56 +108,62 @@ const rotate = (state) => {
 		  col: position.col + offset.col,
 		  row: position.row + offset.row,
 		};
-		if (isValidPosition(state.board, rotated, newPosition)) {
-			state.activePiece.shape = rotated;
-			state.activePiece.position = newPosition;
+		if (isValidPosition(playerState.board, rotated, newPosition)) {
+			playerState.activePiece.shape = rotated;
+			playerState.activePiece.position = newPosition;
+			break ;
 		}
-		break ;
 	};
 
-	return state;
+	return playerState;
 }
 
-const dropToBottom = (state) => {
-	const { type, position, shape } = state.activePiece;
+const dropToBottom = (playerState) => {
+	const { type, position, shape } = playerState.activePiece;
 	const pieceShape = shape || PIECES[type];
 	const newPos = { ...position, row: position.row + 1 };
 
-	while (isValidPosition(state.board, pieceShape, {
+	while (isValidPosition(playerState.board, pieceShape, {
 		row: newPos.row + 1,
 		col: newPos.col
 	})) {
 		newPos.row++;
 	}
-	state.activePiece.position = newPos;
-	handlePieceLock(state);
-	return state;
+	playerState.activePiece.position = newPos;
+	const needsNewPiece = handlePieceLock(playerState, playerState.nextPiece);
+	return { playerState, needsNewPiece };
 }
 
-const handlePieceLock = (state) => {
-	if (!state.lockDelay) {
-		state.lockDelay = true;
-	} else {
-		lockPieceToBoard(state);
+const handlePieceLock = (playerState, nextPiece = null) => {
+	let needsNewPiece = false;
 
-		const rowsCleared = clearFullRows(state);
+	if (!playerState.lockDelay) {
+		playerState.lockDelay = true;
+	} else {
+		lockPieceToBoard(playerState);
+
+		const rowsCleared = clearFullRows(playerState);
 		if (rowsCleared > 0) {
+			updatePlayerScore(playerState, rowsCleared);
 			console.log(`Cleared ${rowsCleared} rows!`);
 		}
-		const newPiece = generateNewRandomPiece(state.board);
-		if (!newPiece) {
-			console.log("Game Over");
-			state.activePiece = null;
-			state.gameOver = true;
+		if (nextPiece) {
+			if (!isValidPosition(playerState.board, PIECES[nextPiece.type], nextPiece.position)) {
+				playerState.gameOver = true;
+				console.log(`Game over for player ${playerState.name}`);
+			} else {
+				playerState.activePiece = nextPiece;
+			}
 		} else {
-			state.activePiece = newPiece;
+			needsNewPiece = true;
 		}
-		state.lockDelay = false;
+		playerState.lockDelay = false;
+		return needsNewPiece;
 	}
 }
 
-const lockPieceToBoard = (state) => {
-	const { type, position, shape } = state.activePiece;
+const lockPieceToBoard = (playerState) => {
+	const { type, position, shape } = playerState.activePiece;
 	const pieceShape = shape || PIECES[type];
 	
 	pieceShape.forEach((row, rowIndex) => {
@@ -194,16 +171,35 @@ const lockPieceToBoard = (state) => {
 			if (cell) {
 				const boardRow = position.row + rowIndex;
 				const boardCol = position.col + colIndex;
-				state.board[boardRow][boardCol] = type;
+
+				if (boardRow >= 0 && boardRow < playerState.board.length &&
+					boardCol >= 0 && boardCol < playerState.board[0].length ) {
+						playerState.board[boardRow][boardCol] = type;
+					}
 			}
 		});
 	});
 };
 
+const updatePlayerScore = (player, rowsCleared) => {
+	const basePoints = [0, 40, 100, 300, 1200]; // puntos x eliminar x rows
+	
+	player.score += basePoints[rowsCleared];
+	player.linesCleared += rowsCleared;
+};
+
 module.exports = {
 	isValidPosition,
-	generateNewRandomPiece,
-	movePiece,
+	generateNewRandomPieceSequence,
+	moveLeft,
+	moveRight,
+	moveDown,
+	rotate,
+	dropToBottom,
+	updatePlayerScore,
+	handlePieceLock,
+	lockPieceToBoard,
+	clearFullRows,
 	BOARD_ROWS: 20,
 	BOARD_COLUMNS: 10
 };
