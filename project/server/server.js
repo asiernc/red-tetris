@@ -14,7 +14,10 @@ const server = app.listen(3001, () => {
 });
 
 const io = socketIo(server, {
-  cors: { origin: "http://localhost:3000" } // Ajusta al puerto del cliente
+	cors: {
+		origin: "*", // `http://${process.env.HOST_IP}:3000`
+		methods: ["GET", "POST"]
+	} // Ajusta al puerto del cliente
 });
 
 // estado global del juego (por sala)
@@ -112,6 +115,7 @@ const broadcastRoomList = () => {
 	io.emit('roomList', availableRooms);
 };
 
+// Websocket logica
 io.on('connection', (socket) => {
 	console.log('New client connected');
 
@@ -128,10 +132,6 @@ io.on('connection', (socket) => {
 		const playerState = initPlayerState(playerName, roomId);
 		playerState.activePiece = getNextPieceForPlayer(roomId);
 		gameRooms[roomId].players[playerId] = playerState;
-
-		// if (!gameRooms[roomId].interval) {
-		// 	gameRooms[roomId].interval = startGameInterval(roomId);
-		// }
 
 		socket.emit('gameState', preparePlayerStateForClient(roomId, playerId));
 		io.to(roomId).emit('playerList', getPlayerList(roomId));
@@ -255,6 +255,36 @@ io.on('connection', (socket) => {
 	});
 	broadcastRoomList();
 });
+
+app.get('/:room/:player_name', (req, res) => {
+	const { room, player_name } = req.params;
+
+	res.send(`
+		<!DOCTYPE html>
+		<html lang="en">
+		<head>
+		  <meta charset="UTF-8">
+		  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+		  <title>Red Tetris</title>
+		</head>
+		<body>
+		  <div id="root"></div>
+		  <script>
+			// Pasar los parámetros de la URL al cliente React
+			const room = "${room}";
+			const playerName = "${player_name}";
+	
+			// Guardar los datos en el almacenamiento local para que React los use
+			localStorage.setItem('room', room);
+			localStorage.setItem('playerName', playerName);
+	
+			// Redirigir al cliente React
+			window.location.href = "http://${window.location.hostname}:3000";
+		  </script>
+		</body>
+		</html>
+	  `);
+})
 
 const processPlayerMove = (roomId, playerId, direction) => {
 	const player = gameRooms[roomId].players[playerId];

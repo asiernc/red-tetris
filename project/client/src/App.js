@@ -4,7 +4,7 @@ import { io } from 'socket.io-client';
 import BoardComponent from './components/BoardComponent';
 import { updateGameState } from './features/boardSlice';
 
-const socket = io('http://localhost:3001');
+const socket = io(process.env.REACT_APP_SERVER_URL || 'http://localhost:3001');
 
 const App = () => {
 	const dispatch = useDispatch();
