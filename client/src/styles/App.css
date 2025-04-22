@@ -1,0 +1,67 @@
+.game-container {
+	display: flex;
+	flex-direction: column;
+	min-height: 100vh;
+	background-color: #8c1717;
+	color: white;
+	padding: 20px;
+}
+
+.game-header {
+	margin-bottom: 20px;
+}
+
+.game-header h1 {
+	font-size: 2rem;
+	margin-bottom: 10px;
+}
+
+.game-header h2 {
+	font-size: 1.5rem;
+	color: #e0e0e0;
+}
+
+.game-content {
+	display: flex;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 40px;
+}
+
+.game-sidebar {
+	background-color: #1e1e1e;
+	padding: 20px;
+	border-radius: 8px;
+	min-width: 200px;
+}
+
+.leader-badge {
+	background-color: #ff416c;
+	color: white;
+	padding: 2px 8px;
+	border-radius: 12px;
+	font-size: 0.8rem;
+	margin-left: 10px;
+}
+
+  .players-list {
+	list-style-type: none;
+	padding: 0;
+  }
+  
+  .players-list li {
+	padding: 8px 0;
+	border-bottom: 1px solid #333;
+  }
+  
+  .current-player {
+	font-weight: bold;
+	color: #ff416c;
+  }
+  
+  .loading-message {
+	text-align: center;
+	font-size: 1.5rem;
+	color: #e0e0e0;
+	margin: 50px 0;
+  }
